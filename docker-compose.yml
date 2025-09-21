@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ai-hr-postgres
+    environment:
+      POSTGRES_DB: ai_hr
+      POSTGRES_USER: ai_hr_user
+      POSTGRES_PASSWORD: ai_hr_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_hr_user -d ai_hr"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: ai-hr-app
+    environment:
+      - DATABASE_URL=postgresql://ai_hr_user:ai_hr_password@postgres:5432/ai_hr
+      - CHAINLIT_AUTH_SECRET=secret
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: ["uv", "run", "chainlit", "run", "app.py", "--host", "0.0.0.0", "--port", "8000", "--watch"]
+
+volumes:
+  postgres_data:
