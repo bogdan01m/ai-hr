@@ -1,0 +1,39 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+
+    - name: Install UV
+      run: |
+        python -m pip install --upgrade pip
+        pip install uv
+
+    - name: Install dependencies
+      run: uv sync --group quality
+
+    - name: Run Ruff linting
+      run: uv run ruff check src/
+
+    - name: Run MyPy type checking
+      run: uv run mypy --ignore-missing-imports --follow-imports=silent src/
+
+    - name: Run Bandit security scan
+      run: uv run bandit --severity-level high --confidence-level high --skip B101 -r src/

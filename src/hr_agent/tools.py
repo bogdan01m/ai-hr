@@ -1,25 +1,18 @@
-from pydantic_ai import Agent, RunContext
-from typing import List
-from dotenv import load_dotenv
+from pydantic_ai import RunContext
+from typing import List, Optional, Any, Dict
 
-from schemas import ProfileContext, WorkFormat
-from prompt import SYSTEM_PROMPT
-from logger_config import log_profile_update
+from ..shared.schemas import ProfileContext
+from ..shared.logger_config import log_profile_update
 
-load_dotenv()
 
-agent = Agent(
-    'openai:gpt-5-mini',
-    system_prompt=SYSTEM_PROMPT,
-    deps_type=ProfileContext,
-    instrument=True
-)
-
-@agent.tool
-def update_position_info(ctx: RunContext[ProfileContext], title: str = None,
-                        experience_years: int = None, company_field: str = None) -> str:
+async def update_position_info(
+    ctx: RunContext[ProfileContext],
+    title: Optional[str] = None,
+    experience_years: Optional[int] = None,
+    company_field: Optional[str] = None,
+) -> str:
     """Обновляет информацию о позиции в профиле кандидата"""
-    updates = {}
+    updates: Dict[str, Any] = {}
     if title:
         ctx.deps.profile.position.title = title
         updates["title"] = title
@@ -35,10 +28,14 @@ def update_position_info(ctx: RunContext[ProfileContext], title: str = None,
 
     return f"Информация о позиции обновлена. Текущий этап: {stage}"
 
-@agent.tool
-def update_hard_skills(ctx: RunContext[ProfileContext], programming_languages: List[str] = None,
-                      frameworks: List[str] = None, tools: List[str] = None,
-                      certifications: List[str] = None) -> str:
+
+async def update_hard_skills(
+    ctx: RunContext[ProfileContext],
+    programming_languages: Optional[List[str]] = None,
+    frameworks: Optional[List[str]] = None,
+    tools: Optional[List[str]] = None,
+    certifications: Optional[List[str]] = None,
+) -> str:
     """Обновляет технические навыки в профиле кандидата"""
     if programming_languages:
         ctx.deps.profile.hard_skills.programming_languages = programming_languages
@@ -51,10 +48,14 @@ def update_hard_skills(ctx: RunContext[ProfileContext], programming_languages: L
 
     return f"Технические навыки обновлены. Текущий этап: {ctx.deps.get_current_stage()}"
 
-@agent.tool
-def update_soft_skills(ctx: RunContext[ProfileContext], personal_qualities: List[str] = None,
-                      communication_skills: List[str] = None, team_skills: List[str] = None,
-                      leadership_skills: List[str] = None) -> str:
+
+async def update_soft_skills(
+    ctx: RunContext[ProfileContext],
+    personal_qualities: Optional[List[str]] = None,
+    communication_skills: Optional[List[str]] = None,
+    team_skills: Optional[List[str]] = None,
+    leadership_skills: Optional[List[str]] = None,
+) -> str:
     """Обновляет личностные навыки в профиле кандидата"""
     if personal_qualities:
         ctx.deps.profile.soft_skills.personal_qualities = personal_qualities
@@ -67,13 +68,17 @@ def update_soft_skills(ctx: RunContext[ProfileContext], personal_qualities: List
 
     return f"Личностные навыки обновлены. Текущий этап: {ctx.deps.get_current_stage()}"
 
-@agent.tool
-def update_work_conditions(ctx: RunContext[ProfileContext], work_format: str = None,
-                          salary_expectations: str = None, benefits: List[str] = None,
-                          travel_readiness: bool = None) -> str:
+
+async def update_work_conditions(
+    ctx: RunContext[ProfileContext],
+    work_format: Optional[str] = None,
+    salary_expectations: Optional[str] = None,
+    benefits: Optional[List[str]] = None,
+    travel_readiness: Optional[bool] = None,
+) -> str:
     """Обновляет условия работы в профиле кандидата"""
     if work_format:
-        ctx.deps.profile.work_conditions.work_format = WorkFormat(work_format.lower())
+        ctx.deps.profile.work_conditions.work_format = work_format
     if salary_expectations:
         ctx.deps.profile.work_conditions.salary_expectations = salary_expectations
     if benefits:
@@ -83,8 +88,8 @@ def update_work_conditions(ctx: RunContext[ProfileContext], work_format: str = N
 
     return f"Условия работы обновлены. Текущий этап: {ctx.deps.get_current_stage()}"
 
-@agent.tool
-def get_profile_status(ctx: RunContext[ProfileContext]) -> str:
+
+async def get_profile_status(ctx: RunContext[ProfileContext]) -> str:
     """Получает текущий статус заполнения профиля"""
     stage = ctx.deps.get_current_stage()
     profile = ctx.deps.profile

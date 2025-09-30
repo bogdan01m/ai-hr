@@ -1,17 +1,23 @@
 
 import chainlit as cl
-from hr_agent import agent
-from schemas import ProfileContext
-from chat_history import ChatHistoryManager
-from logger_config import (
+from src.hr_agent.agent import agent
+from src.shared.schemas import ProfileContext
+from src.shared.chat_history import ChatHistoryManager
+from src.shared.logger_config import (
     setup_logfire,
     log_user_message,
     log_agent_response,
     log_database_operation
 )
+from src.database.data_layer import get_data_layer
 
 # Инициализация logfire
 setup_logfire()
+
+# Инициализация Chainlit data layer
+# @cl.data_layer
+# async def init_data_layer():
+#     return await get_data_layer()
 
 @cl.on_chat_start
 async def start():
@@ -61,7 +67,7 @@ async def main(message: cl.Message):
 
     # Сохраняем пользовательское сообщение
     try:
-        chat_manager.save_message(
+        await chat_manager.save_message(
             session_id=session_id,
             message_type="user",
             content=message.content,
@@ -72,13 +78,13 @@ async def main(message: cl.Message):
         log_database_operation("save_user_message", session_id, False, str(e))
 
     # Формируем сообщение с историей для агента
-    message_with_history = chat_manager.format_history_for_agent(
+    message_with_history = await chat_manager.format_history_for_agent(
         session_id=session_id,
         current_message=message.content
     )
 
     # Запускаем агент с контекстом и историей
-    result = agent.run_sync(
+    result = await agent.run(
         message_with_history,
         deps=profile_context
     )
@@ -92,7 +98,7 @@ async def main(message: cl.Message):
 
     # Сохраняем ответ агента
     try:
-        chat_manager.save_message(
+        await chat_manager.save_message(
             session_id=session_id,
             message_type="assistant",
             content=result.output,
