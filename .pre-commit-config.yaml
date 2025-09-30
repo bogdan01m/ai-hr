@@ -13,16 +13,16 @@ repos:
     hooks:
       - id: ruff
         args: [--fix]
-        files: ^src/
+        files: src/
       - id: ruff-format
-        files: ^src/
+        files: src/
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
     hooks:
       - id: mypy
         args: [--ignore-missing-imports, --follow-imports=silent]
-        files: ^src/
+        files: src/
         additional_dependencies: []
 
   - repo: https://github.com/PyCQA/bandit
@@ -30,4 +30,4 @@ repos:
     hooks:
       - id: bandit
         args: [--severity-level, high, --confidence-level, high, --skip, B101, -r]
-        files: ^src/
+        files: src/

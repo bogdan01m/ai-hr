@@ -29,11 +29,5 @@ jobs:
     - name: Install dependencies
       run: uv sync --group quality
 
-    - name: Run Ruff linting
-      run: uv run ruff check src/
-
-    - name: Run MyPy type checking
-      run: uv run mypy --ignore-missing-imports --follow-imports=silent src/
-
-    - name: Run Bandit security scan
-      run: uv run bandit --severity-level high --confidence-level high --skip B101 -r src/
+    - name: Run pre-commit on all files
+      run: pre-commit run --all-files

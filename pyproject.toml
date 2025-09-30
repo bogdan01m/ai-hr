@@ -23,3 +23,15 @@ quality = [
     "bandit>=1.7.10",
     "pre-commit>=4.0.0",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+follow_imports = "silent"
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = ["src"]
+
+# Часто помогает в FastAPI/SQLAlchemy проектах:
+check_untyped_defs = true
+warn_unused_ignores = true
