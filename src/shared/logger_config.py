@@ -10,17 +10,21 @@ def setup_logfire():
     """Настройка логирования через Logfire"""
     logfire_token = os.getenv("LOGFIRE_TOKEN")
 
+    # Всегда настраиваем logfire, но отправляем на сервер только при наличии токена
+    logfire.configure(
+        token=logfire_token,  # Может быть None
+        service_name=os.getenv("LOGFIRE_SERVICE_NAME", "hr-chatbot"),
+        environment=os.getenv("LOGFIRE_ENV", "development"),
+        send_to_logfire="if-token-present",  # Отправляет только при наличии токена
+    )
+
     if logfire_token:
-        logfire.configure(
-            token=logfire_token,
-            project_name=os.getenv("LOGFIRE_PROJECT_NAME", "ai-hr"),
-            service_name=os.getenv("LOGFIRE_SERVICE_NAME", "hr-chatbot"),
-            environment=os.getenv("LOGFIRE_ENV", "development"),
-        )
-        logfire.info("Logfire настроен успешно")
+        logfire.info("Logfire настроен с отправкой на сервер")
         return True
     else:
-        print("LOGFIRE_TOKEN не найден. Логирование в Logfire отключено.")
+        logfire.info(
+            "Logfire настроен только для локального логирования (токен не найден)"
+        )
         return False
 
 

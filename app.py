@@ -1,5 +1,6 @@
 
 import chainlit as cl
+from typing import Optional
 from src.hr_agent.agent import agent
 from src.shared.schemas import ProfileContext
 from src.shared.chat_history import ChatHistoryManager
@@ -10,7 +11,7 @@ from src.shared.logger_config import (
     log_database_operation
 )
 from src.database.data_layer import get_data_layer
-
+from src.auth import auth_manager
 # Инициализация logfire
 setup_logfire()
 
@@ -18,6 +19,22 @@ setup_logfire()
 # @cl.data_layer
 # async def init_data_layer():
 #     return await get_data_layer()
+
+@cl.password_auth_callback
+def auth_callback(username: str, password: str) -> Optional[cl.User]:
+    """Callback для авторизации Chainlit"""
+    # Валидация входных данных
+    if not username or not password:
+        return None
+
+    if len(username.strip()) == 0 or len(password.strip()) == 0:
+        return None
+
+    # Проверка силы пароля (минимум 4 символа для простоты)
+    if len(password) < 4:
+        return None
+
+    return auth_manager.authenticate(username.strip(), password.strip())
 
 @cl.on_chat_start
 async def start():

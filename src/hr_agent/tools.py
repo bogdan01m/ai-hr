@@ -1,6 +1,7 @@
 from pydantic_ai import RunContext
 from typing import List, Optional, Any, Dict
 import uuid
+import os
 
 from ..shared.schemas import ProfileContext
 from ..shared.logger_config import log_profile_update
@@ -153,7 +154,12 @@ async def save_profile_to_sheets(ctx: RunContext[ProfileContext]) -> str:
             log_profile_update(
                 "unknown", "saved", "google_sheets", {"profile_id": profile_id}
             )
-            return f"✅ Профиль успешно сохранен в Google Таблицу! ID профиля: {profile_id}"
+
+            # Получаем ID таблицы из переменных окружения
+            spreadsheet_id = os.getenv("GOOGLE_SPREADSHEET_ID")
+            sheets_link = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit?gid=0#gid=0"
+
+            return f"✅ Профиль успешно сохранен в Google Таблицу! ID профиля: {profile_id}\n\n🔗 Ссылка на таблицу: {sheets_link}"
         else:
             return "❌ Ошибка при сохранении профиля в Google Таблицу. Проверьте логи для подробностей."
 
