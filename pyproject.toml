@@ -18,6 +18,9 @@ dependencies = [
 ]
 
 [dependency-groups]
+dev = [
+    "pre-commit>=4.3.0",
+]
 quality = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",

@@ -24,6 +24,9 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+dev = [
+    { name = "pre-commit" },
+]
 quality = [
     { name = "bandit" },
     { name = "mypy" },
@@ -46,6 +49,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
+dev = [{ name = "pre-commit", specifier = ">=4.3.0" }]
 quality = [
     { name = "bandit", specifier = ">=1.7.10" },
     { name = "mypy", specifier = ">=1.13.0" },
