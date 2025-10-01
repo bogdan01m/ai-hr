@@ -39,7 +39,7 @@ auto_tag_thread = true
 edit_message = true
 
 # Allow users to share threads (backend + UI). Requires an app-defined on_shared_thread_view callback.
-allow_thread_sharing = false
+allow_thread_sharing = true
 
 [features.slack]
 # Add emoji reaction when message is received (requires reactions:write OAuth scope)
@@ -88,7 +88,7 @@ reaction_on_message_received = false
 # Name of the assistant.
 name = "AI HR Assistant"
 
-# default_theme = "dark"
+# default_theme = "system"
 
 # layout = "wide"
 
@@ -150,5 +150,5 @@ default_avatar_file_url = ""
 generated_by = "2.8.0"
 
 [data_persistence]
-# Disable Chainlit's built-in data persistence (we use our own PostgreSQL)
-enabled = false
+# Enable Chainlit's built-in data persistence
+enabled = true

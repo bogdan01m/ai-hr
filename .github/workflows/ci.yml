@@ -10,7 +10,7 @@ jobs:
   quality:
     name: Code Quality Checks
     runs-on: ubuntu-latest
-    continue-on-error: true
+    continue-on-error: false
 
     steps:
       - name: Checkout code

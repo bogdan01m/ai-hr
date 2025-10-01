@@ -18,8 +18,7 @@ uv sync
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your OPENAI_API_KEY and LOGFIRE_TOKEN
-# Note: DATABASE_URL is intentionally commented out in .env.example
+# Edit .env with your OPENAI_API_KEY, LOGFIRE_TOKEN, and DATABASE_URL
 
 # Run the application
 chainlit run app.py
@@ -60,15 +59,15 @@ pre-commit run --all-files
 
 ## Architecture
 
-The project is organized into modular packages under `src/` for better code organization and maintainability.
+The project uses a simplified architecture built on Chainlit's built-in persistence with minimal custom components.
 
 ### Core Components
 
 **app.py** - Main Chainlit application entry point
-- Handles chat lifecycle (@cl.on_chat_start, @cl.on_message)
-- Manages user sessions with ProfileContext and ChatHistoryManager
-- Integrates logging and database operations
-- Imports from modular `src/` packages
+- Handles chat lifecycle (@cl.on_chat_start, @cl.on_message, @cl.on_chat_resume)
+- Manages user sessions with ProfileContext restoration
+- Uses Chainlit's built-in SQLAlchemy data layer for persistence
+- Integrates logging and observability
 
 **src/hr_agent/** - PydanticAI agent package
 - `agent.py`: Main agent configuration with OpenAI GPT-4o-mini and tool registration
@@ -77,34 +76,33 @@ The project is organized into modular packages under `src/` for better code orga
 
 **src/shared/** - Shared components package
 - `schemas.py`: Pydantic models defining candidate profile structure (ProfileContext, CandidateProfile with PositionInfo, HardSkills, SoftSkills, WorkConditions)
-- `chat_history.py`: ChatHistoryManager for message storage/retrieval with XML formatting
+- `chat_history.py`: Simplified ChatHistoryManager for history formatting only
+- `profile_saver.py`: Minimal ProfileContextSaver for thread metadata persistence
+- `database_url.py`: Database URL configuration utility
 - `prompt.py`: System prompt configuration for the AI agent
 - `logger_config.py`: Logfire integration and logging utilities
 - `google_sheets.py`: GoogleSheetsManager for saving completed profiles to Google Sheets
-- work_format field in WorkConditions accepts flexible string values (not limited to enum)
-
-**src/database/** - Database layer package
-- `config.py`: Database configuration, async engine, and session management
-- `models.py`: SQLAlchemy models for ChatSession and ChatMessage
-- `data_layer.py`: Chainlit data layer integration (optional)
-- Custom database URL handling to avoid conflicts with Chainlit's built-in persistence
-- Auto-creates tables on first connection
 
 ### Key Design Patterns
 
-**Dual Persistence**: The system maintains two separate data layers:
-1. Chainlit session state for ProfileContext (in-memory during session)
-2. PostgreSQL for permanent message history and profile snapshots
+**Single Source of Truth**: Uses Chainlit's built-in SQLAlchemy data layer for all persistence:
+1. Message history automatically saved and restored in UI
+2. ProfileContext saved in thread metadata for cross-session persistence
+3. Chat history extracted from ThreadDict on session resume
 
 **Agent Context Flow**: Each user message includes full conversation history formatted for the agent, enabling context-aware responses.
 
 **Stage-based Profile Building**: ProfileContext tracks completion stages (position → hard_skills → soft_skills → work_conditions → complete) with validation methods.
 
+**Session Restoration**: On chat resume, the system:
+1. Extracts message history from ThreadDict["steps"]
+2. Restores ProfileContext from thread metadata
+3. Maintains full context continuity across sessions
+
 ## Configuration Notes
 
 ### Environment Variables
-- DATABASE_URL is intentionally commented out in .env to prevent Chainlit from using the same database
-- Chainlit data persistence is disabled in .chainlit/config.toml
+- DATABASE_URL configures PostgreSQL connection for Chainlit's data layer
 - Logfire integration is optional but configured for observability
 - Google Sheets integration requires GOOGLE_SPREADSHEET_ID and GOOGLE_CREDENTIALS_PATH environment variables
 
@@ -115,5 +113,9 @@ The agent system prompt (src/shared/prompt.py) instructs the AI to:
 - Never repeat the welcome message (already shown by Chainlit)
 - Follow structured conversation flow through profile stages
 
-### Database Schema
-Message history preserves both the raw conversation and profile context snapshots, enabling full session reconstruction and analytics on profile creation patterns.
+### Data Persistence
+The application uses Chainlit's built-in SQLAlchemy data layer with:
+- Automatic message history persistence in UI
+- ProfileContext stored in thread metadata for session restoration
+- Thread-based persistence enabling seamless chat resume functionality
+- No custom database models or duplicate persistence logic required

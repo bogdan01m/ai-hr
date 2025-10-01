@@ -13,15 +13,18 @@ from src.shared.logger_config import (
     log_database_operation,
     log_pdf_operation
 )
-from src.database.data_layer import get_data_layer
 from src.auth import auth_manager
 # Инициализация logfire
 setup_logfire()
 
-# Инициализация Chainlit data layer
-# @cl.data_layer
-# async def init_data_layer():
-#     return await get_data_layer()
+# Используем встроенный Chainlit SQLAlchemy data layer для сессий
+@cl.data_layer
+def get_data_layer():
+    from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
+    from src.shared.database_url import get_database_url
+
+    conninfo = get_database_url()
+    return SQLAlchemyDataLayer(conninfo=conninfo)
 
 @cl.password_auth_callback
 def auth_callback(username: str, password: str) -> Optional[cl.User]:
@@ -48,6 +51,9 @@ async def start():
     # Инициализируем менеджер истории чата
     chat_manager = ChatHistoryManager()
     cl.user_session.set("chat_manager", chat_manager)
+
+    # Инициализируем пустую историю сообщений для новой сессии
+    cl.user_session.set("message_history", [])
 
     welcome_message = """👋 Здравствуйте! Я помогу вам создать профиль идеального кандидата для вашей вакансии.
 
@@ -138,24 +144,21 @@ async def main(message: cl.Message):
         profile_context=profile_context.model_dump() if profile_context else None
     )
 
-    # Сохраняем пользовательское сообщение
-    try:
-        await chat_manager.save_message(
-            session_id=session_id,
-            message_type="user",
-            content=message.content,
-            profile_context=profile_context
-        )
-        log_database_operation("save_user_message", session_id, True)
-    except Exception as e:
-        log_database_operation("save_user_message", session_id, False, str(e))
-
-    # Формируем сообщение с историей для агента, включая PDF контекст если есть
+    # Формируем сообщение с историей для агента
     message_with_history = await chat_manager.format_history_for_agent(
         session_id=session_id,
         current_message=message.content,
         profile_context=profile_context
     )
+
+    # Обновляем историю в user_session для следующих сообщений (Chainlit автоматически сохраняет в UI)
+    message_history = cl.user_session.get("message_history", [])
+    message_history.append({
+        "type": "user",
+        "content": message.content,
+        "timestamp": None
+    })
+    cl.user_session.set("message_history", message_history)
 
     # Запускаем агент с контекстом и историей
     result = await agent.run(
@@ -170,17 +173,17 @@ async def main(message: cl.Message):
         profile_context=profile_context.model_dump() if profile_context else None
     )
 
-    # Сохраняем ответ агента
-    try:
-        await chat_manager.save_message(
-            session_id=session_id,
-            message_type="assistant",
-            content=result.output,
-            profile_context=profile_context
-        )
-        log_database_operation("save_agent_response", session_id, True)
-    except Exception as e:
-        log_database_operation("save_agent_response", session_id, False, str(e))
+    # Обновляем историю в user_session для следующих сообщений (Chainlit автоматически сохраняет в UI)
+    message_history = cl.user_session.get("message_history", [])
+    message_history.append({
+        "type": "assistant",
+        "content": result.output,
+        "timestamp": None
+    })
+    cl.user_session.set("message_history", message_history)
+
+    # Обновляем ProfileContext в user session (будет автоматически сохранен Chainlit)
+    await chat_manager.update_profile_context(profile_context)
 
     # Добавляем информацию о PDF к ответу агента, если был загружен файл
     final_response = result.output
@@ -188,3 +191,61 @@ async def main(message: cl.Message):
         final_response = f"{pdf_status_message}\n\n{result.output}"
 
     await cl.Message(content=final_response).send()
+
+from chainlit.types import ThreadDict
+
+@cl.on_chat_resume
+async def on_chat_resume(thread: ThreadDict):
+    print("The user resumed a previous chat session!")
+
+    # Получаем session_id из thread
+    session_id = thread["id"]
+
+    # Инициализируем менеджер истории чата
+    chat_manager = ChatHistoryManager()
+    cl.user_session.set("chat_manager", chat_manager)
+
+    # Восстанавливаем историю сообщений из ThreadDict (Chainlit's built-in persistence)
+    message_history = []
+    if "steps" in thread:
+        for step in sorted(thread["steps"], key=lambda x: x.get("createdAt", "")):
+            if step.get("type") == "user_message" and step.get("input"):
+                message_history.append({
+                    "type": "user",
+                    "content": step["input"],
+                    "timestamp": step.get("createdAt")
+                })
+            elif step.get("type") == "assistant_message" and step.get("output"):
+                message_history.append({
+                    "type": "assistant",
+                    "content": step["output"],
+                    "timestamp": step.get("createdAt")
+                })
+
+    # Сохраняем восстановленную историю в user_session для использования агентом
+    cl.user_session.set("message_history", message_history)
+
+    # Восстанавливаем контекст профиля из метаданных thread
+    profile_context = await chat_manager.profile_saver.get_profile_context(session_id)
+
+    if profile_context:
+        cl.user_session.set("profile_context", profile_context)
+
+        # Логируем восстановление контекста
+        from src.shared.logger_config import log_database_operation
+        log_database_operation("restore_profile_context", session_id, True)
+
+        print(f"Restored profile context for session {session_id}")
+        print(f"Current stage: {profile_context.current_stage}")
+        print(f"Profile completion: {profile_context.get_completion_percentage():.1f}%")
+    else:
+        # Создаем новый контекст если не найден
+        profile_context = ProfileContext()
+        cl.user_session.set("profile_context", profile_context)
+        print(f"Created new profile context for session {session_id}")
+
+    print(f"Restored {len(message_history)} messages from chat history")
+
+@cl.on_chat_end
+def on_chat_end():
+    print("The user disconnected!")

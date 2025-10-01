@@ -1,101 +1,30 @@
 from typing import List, Optional
-from datetime import datetime
-from uuid import uuid4
-
-from ..database.data_layer import get_data_layer
+import chainlit as cl
 from .schemas import ProfileContext
+from .profile_saver import ProfileContextSaver
 
 
 class ChatHistoryManager:
-    """Simplified chat history manager using Chainlit data layer"""
+    """Simplified chat history manager using only Chainlit built-in persistence"""
 
     def __init__(self):
-        self.data_layer = None
+        self.profile_saver = ProfileContextSaver()
 
-    async def _get_data_layer(self):
-        """Get or create data layer instance"""
-        if self.data_layer is None:
-            self.data_layer = await get_data_layer()
-        return self.data_layer
+    async def update_profile_context(self, profile_context: ProfileContext):
+        """Update ProfileContext in Chainlit's thread metadata"""
+        # Update user session for immediate access
+        cl.user_session.set("profile_context", profile_context)
 
-    async def save_message(
-        self,
-        session_id: str,
-        message_type: str,
-        content: str,
-        profile_context: Optional[ProfileContext] = None,
-    ):
-        """Save message using Chainlit data layer"""
-        data_layer = await self._get_data_layer()
+        # Save to thread metadata for persistence
+        await self.profile_saver.save_profile_context(profile_context)
 
-        # Get or create thread (Chainlit session)
-        thread = await data_layer.get_thread(session_id)
-        if not thread:
-            # Create new thread
-            thread_data = {
-                "id": session_id,
-                "name": "HR Profile Session",
-                "createdAt": datetime.utcnow().isoformat(),
-                "userIdentifier": "hr_user",
-                "tags": ["hr", "profile"],
-                "metadata": {},
-            }
-
-            thread = await data_layer.create_thread(
-                thread_data, profile_context.model_dump() if profile_context else None
-            )
-        elif profile_context:
-            # Update thread with latest profile context
-            await data_layer.update_thread(
-                session_id, profile_context=profile_context.model_dump()
-            )
-
-        # Create step (message)
-        step_data = {
-            "id": str(uuid4()),
-            "name": f"{message_type}_message",
-            "type": "user_message" if message_type == "user" else "assistant_message",
-            "threadId": session_id,
-            "streaming": False,
-            "input": content if message_type == "user" else None,
-            "output": content if message_type == "assistant" else None,
-            "createdAt": datetime.utcnow().isoformat(),
-            "metadata": {
-                "message_type": message_type,
-                "profile_context": profile_context.model_dump()
-                if profile_context
-                else None,
-            },
-        }
-
-        await data_layer.create_step(step_data)
-
-    async def get_chat_history(self, session_id: str) -> List[dict]:
-        """Get chat history from Chainlit data layer"""
-        data_layer = await self._get_data_layer()
-        steps = await data_layer.get_thread_steps(session_id)
-
-        history = []
-        for step in steps:
-            # Convert step to message format
-            if step["type"] == "user_message" and step["input"]:
-                history.append(
-                    {
-                        "type": "user",
-                        "content": step["input"],
-                        "timestamp": step["createdAt"],
-                    }
-                )
-            elif step["type"] == "assistant_message" and step["output"]:
-                history.append(
-                    {
-                        "type": "assistant",
-                        "content": step["output"],
-                        "timestamp": step["createdAt"],
-                    }
-                )
-
-        return history
+    async def get_chat_history(self, session_id: Optional[str] = None) -> List[dict]:
+        """Get chat history from user session (restored by on_chat_resume)"""
+        try:
+            return cl.user_session.get("message_history", [])
+        except Exception:
+            # If no user session context, return empty history
+            return []
 
     async def format_history_for_agent(
         self,
