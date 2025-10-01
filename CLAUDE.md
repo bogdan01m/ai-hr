@@ -33,6 +33,7 @@ Project uses UV for dependency management with the following key dependencies:
 - pydantic-ai-slim[openai] >=1.0.10 (AI agent framework)
 - sqlalchemy >=2.0.43 + asyncpg/psycopg2-binary (database)
 - logfire >=4.8.0 (observability)
+- gspread >=6.2.1 (Google Sheets integration)
 
 ### Database
 The PostgreSQL database runs in Docker and is accessed via SQLAlchemy. Tables are auto-created on first run.
@@ -71,7 +72,7 @@ The project is organized into modular packages under `src/` for better code orga
 
 **src/hr_agent/** - PydanticAI agent package
 - `agent.py`: Main agent configuration with OpenAI GPT-4o-mini and tool registration
-- `tools.py`: Agent tools for profile management (update_position_info, update_hard_skills, update_soft_skills, update_work_conditions, get_profile_status)
+- `tools.py`: Agent tools for profile management (update_position_info, update_hard_skills, update_soft_skills, update_work_conditions, get_profile_status, save_profile_to_sheets)
 - Each tool logs profile updates and returns current stage status
 
 **src/shared/** - Shared components package
@@ -79,6 +80,7 @@ The project is organized into modular packages under `src/` for better code orga
 - `chat_history.py`: ChatHistoryManager for message storage/retrieval with XML formatting
 - `prompt.py`: System prompt configuration for the AI agent
 - `logger_config.py`: Logfire integration and logging utilities
+- `google_sheets.py`: GoogleSheetsManager for saving completed profiles to Google Sheets
 - work_format field in WorkConditions accepts flexible string values (not limited to enum)
 
 **src/database/** - Database layer package
@@ -104,6 +106,7 @@ The project is organized into modular packages under `src/` for better code orga
 - DATABASE_URL is intentionally commented out in .env to prevent Chainlit from using the same database
 - Chainlit data persistence is disabled in .chainlit/config.toml
 - Logfire integration is optional but configured for observability
+- Google Sheets integration requires GOOGLE_SPREADSHEET_ID and GOOGLE_CREDENTIALS_PATH environment variables
 
 ### Agent Behavior
 The agent system prompt (src/shared/prompt.py) instructs the AI to:

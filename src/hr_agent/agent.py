@@ -9,6 +9,7 @@ from .tools import (
     update_soft_skills,
     update_work_conditions,
     get_profile_status,
+    save_profile_to_sheets,
 )
 
 load_dotenv()
@@ -19,6 +20,7 @@ agent = Agent(
     system_prompt=SYSTEM_PROMPT,
     deps_type=ProfileContext,
     instrument=True,
+    retries=5,
 )
 
 # Register tools
@@ -27,3 +29,4 @@ agent.tool(update_hard_skills)
 agent.tool(update_soft_skills)
 agent.tool(update_work_conditions)
 agent.tool(get_profile_status)
+agent.tool(save_profile_to_sheets)

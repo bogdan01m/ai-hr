@@ -1,8 +1,10 @@
 from pydantic_ai import RunContext
 from typing import List, Optional, Any, Dict
+import uuid
 
 from ..shared.schemas import ProfileContext
 from ..shared.logger_config import log_profile_update
+from ..shared.google_sheets import get_sheets_manager
 
 
 async def update_position_info(
@@ -120,6 +122,40 @@ async def get_profile_status(ctx: RunContext[ProfileContext]) -> str:
 - Зарплата: {profile.work_conditions.salary_expectations}
 - Бенефиты: {profile.work_conditions.benefits or 'Не указано'}
 - Готовность к командировкам: {profile.work_conditions.travel_readiness}
+
+Хотите сохранить этот профиль в Google Таблицу? Ответьте "да" для сохранения или предложите изменения.
 """
     else:
         return f"Текущий этап: {stage}. Профиль заполнен не полностью."
+
+
+async def save_profile_to_sheets(ctx: RunContext[ProfileContext]) -> str:
+    """Сохраняет завершенный профиль в Google Sheets"""
+    stage = ctx.deps.get_current_stage()
+
+    if stage != "complete":
+        return (
+            "Ошибка: профиль не завершен. Невозможно сохранить незавершенный профиль."
+        )
+
+    try:
+        sheets_manager = get_sheets_manager()
+        if not sheets_manager:
+            return "Ошибка: Google Sheets не настроен. Проверьте переменные окружения GOOGLE_SPREADSHEET_ID и GOOGLE_CREDENTIALS_PATH."
+
+        # Генерируем уникальный ID профиля
+        profile_id = str(uuid.uuid4())[:8]
+
+        # Сохраняем профиль
+        success = sheets_manager.save_profile(ctx.deps.profile, profile_id)
+
+        if success:
+            log_profile_update(
+                "unknown", "saved", "google_sheets", {"profile_id": profile_id}
+            )
+            return f"✅ Профиль успешно сохранен в Google Таблицу! ID профиля: {profile_id}"
+        else:
+            return "❌ Ошибка при сохранении профиля в Google Таблицу. Проверьте логи для подробностей."
+
+    except Exception as e:
+        return f"❌ Ошибка при сохранении: {str(e)}"
