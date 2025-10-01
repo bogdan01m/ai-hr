@@ -71,6 +71,7 @@ class CandidateProfile(BaseModel):
 class ProfileContext(BaseModel):
     profile: CandidateProfile = CandidateProfile()
     current_stage: str = "position"  # position -> hard_skills -> soft_skills -> work_conditions -> complete
+    company_info_pdf: Optional[str] = None  # PDF content with company information
 
     def get_current_stage(self) -> str:
         if not self.profile.is_position_complete():

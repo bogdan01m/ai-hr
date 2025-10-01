@@ -98,22 +98,29 @@ class ChatHistoryManager:
         return history
 
     async def format_history_for_agent(
-        self, session_id: str, current_message: str
+        self,
+        session_id: str,
+        current_message: str,
+        profile_context: Optional[ProfileContext] = None,
     ) -> str:
-        """Format history for agent prompt"""
+        """Format history for agent prompt, including PDF context if available"""
         history = await self.get_chat_history(session_id)
 
-        if not history:
-            return current_message
+        formatted_message = ""
 
-        # Format history
-        history_text = "<history_start>\n"
-        for msg in history:
-            role = "User" if msg["type"] == "user" else "Assistant"
-            history_text += f"{role}: {msg['content']}\n"
-        history_text += "<history_end>\n\n"
+        # Add company PDF context if available
+        if profile_context and profile_context.company_info_pdf:
+            formatted_message += f"<company_context>\n{profile_context.company_info_pdf}\n</company_context>\n\n"
+
+        # Add chat history if exists
+        if history:
+            formatted_message += "<history_start>\n"
+            for msg in history:
+                role = "User" if msg["type"] == "user" else "Assistant"
+                formatted_message += f"{role}: {msg['content']}\n"
+            formatted_message += "<history_end>\n\n"
 
         # Add current message
-        history_text += f"<current_message>\n{current_message}\n</current_message>"
+        formatted_message += f"<current_message>\n{current_message}\n</current_message>"
 
-        return history_text
+        return formatted_message

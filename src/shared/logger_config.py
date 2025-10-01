@@ -84,3 +84,32 @@ def log_profile_update(
         update_type=update_type,
         data=data,
     )
+
+
+def log_pdf_operation(
+    operation: str,
+    success: bool,
+    pdf_path: Optional[str] = None,
+    token_count: Optional[int] = None,
+    error: Optional[str] = None,
+    session_id: Optional[str] = None,
+):
+    """Логирование операций с PDF"""
+    if success:
+        logfire.info(
+            f"PDF operation: {operation}",
+            operation=operation,
+            success=success,
+            pdf_path=pdf_path,
+            token_count=token_count,
+            session_id=session_id,
+        )
+    else:
+        logfire.error(
+            f"PDF operation failed: {operation}",
+            operation=operation,
+            success=success,
+            pdf_path=pdf_path,
+            error=error,
+            session_id=session_id,
+        )
