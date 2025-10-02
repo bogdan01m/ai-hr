@@ -142,7 +142,7 @@ async def save_profile_to_sheets(ctx: RunContext[ProfileContext]) -> str:
     try:
         sheets_manager = get_sheets_manager()
         if not sheets_manager:
-            return "Ошибка: Google Sheets не настроен. Проверьте переменные окружения GOOGLE_SPREADSHEET_ID и GOOGLE_CREDENTIALS_PATH."
+            return "Ошибка: Google Sheets не настроен. Проверьте переменные окружения GOOGLE_SPREADSHEET_ID и Google Service Account credentials (GOOGLE_PROJECT_ID, GOOGLE_PRIVATE_KEY, и др.)."
 
         # Генерируем уникальный ID профиля
         profile_id = str(uuid.uuid4())[:8]

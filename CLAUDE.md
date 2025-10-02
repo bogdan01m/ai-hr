@@ -9,9 +9,26 @@ AI HR Assistant - a Chainlit-based conversational AI application that helps HR p
 ## Development Commands
 
 ### Setup and Running
+
+#### Option 1: Full Docker Setup (Recommended)
+```bash
+# Configure environment
+cp .env.example .env
+# Edit .env with your OPENAI_API_KEY, LOGFIRE_TOKEN, and other required variables
+# Note: DATABASE_URL will be automatically set for Docker containers
+
+# Place your Google credentials file as google-credentials.json in the project root
+
+# Build and start all services (PostgreSQL + Chainlit)
+docker-compose up --build
+
+# The application will be available at http://localhost:8000
+```
+
+#### Option 2: Local Development
 ```bash
 # Start PostgreSQL database
-docker-compose up -d
+docker-compose up -d postgres
 
 # Install dependencies (requires Python >=3.12)
 uv sync
@@ -33,10 +50,6 @@ Project uses UV for dependency management with the following key dependencies:
 - sqlalchemy >=2.0.43 + asyncpg/psycopg2-binary (database)
 - logfire >=4.8.0 (observability)
 - gspread >=6.2.1 (Google Sheets integration)
-
-### Database
-The PostgreSQL database runs in Docker and is accessed via SQLAlchemy. Tables are auto-created on first run.
-
 ### Code Quality
 Project includes automated code quality tools:
 ```bash

@@ -208,3 +208,6 @@ __marimo__/
 
 # Google Secrets
 ai-hr-google-secret.json
+
+# Uploads directory for file storage
+uploads/

@@ -16,5 +16,58 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  chainlit:
+    build: .
+    container_name: ai-hr-chainlit
+    environment:
+      - CHAINLIT_AUTH_SECRET=${CHAINLIT_AUTH_SECRET}
+      - CHAINLIT_USER_NAME=${CHAINLIT_USER_NAME}
+      - CHAINLIT_USER_PASSWORD=${CHAINLIT_USER_PASSWORD}
+      - DB_HOST=postgres
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-ai_hr}
+      - DB_USER=${DB_USER:-ai_hr_user}
+      - DB_PASSWORD=${DB_PASSWORD:-ai_hr_password}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LOGFIRE_TOKEN=${LOGFIRE_TOKEN}
+      - GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID}
+      - GOOGLE_TYPE=${GOOGLE_TYPE}
+      - GOOGLE_PROJECT_ID=${GOOGLE_PROJECT_ID}
+      - GOOGLE_PRIVATE_KEY_ID=${GOOGLE_PRIVATE_KEY_ID}
+      - GOOGLE_PRIVATE_KEY=${GOOGLE_PRIVATE_KEY}
+      - GOOGLE_CLIENT_EMAIL=${GOOGLE_CLIENT_EMAIL}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_AUTH_URI=${GOOGLE_AUTH_URI}
+      - GOOGLE_TOKEN_URI=${GOOGLE_TOKEN_URI}
+      - GOOGLE_AUTH_PROVIDER_X509_CERT_URL=${GOOGLE_AUTH_PROVIDER_X509_CERT_URL}
+      - GOOGLE_CLIENT_X509_CERT_URL=${GOOGLE_CLIENT_X509_CERT_URL}
+      - GOOGLE_UNIVERSE_DOMAIN=${GOOGLE_UNIVERSE_DOMAIN}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./.env:/app/.env:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    develop:
+      watch:
+        # Sync the working directory with the `/app` directory in the container
+
+        - path: .
+          action: sync
+          target: /app
+          # Exclude the project virtual environment
+          ignore:
+            - .venv/
+            - .git/
+            - __pycache__/
+            - "*.pyc"
+            - .pytest_cache/
+            - coverage_html/
+        - path: ./pyproject.toml
+          action: rebuild
+
 volumes:
   postgres_data:

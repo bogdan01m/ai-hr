@@ -1,8 +1,6 @@
 from typing import Optional
 import chainlit as cl
-from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
 from .schemas import ProfileContext
-from .database_url import get_database_url
 
 
 class ProfileContextSaver:
@@ -11,11 +9,12 @@ class ProfileContextSaver:
     def __init__(self):
         self.data_layer = None
 
-    async def _get_data_layer(self) -> SQLAlchemyDataLayer:
+    async def _get_data_layer(self):
         """Get the same data layer instance that Chainlit uses"""
         if self.data_layer is None:
-            conninfo = get_database_url()
-            self.data_layer = SQLAlchemyDataLayer(conninfo=conninfo)
+            from database.data_layer import get_data_layer
+
+            self.data_layer = await get_data_layer()
         return self.data_layer
 
     async def save_profile_context(self, profile_context: ProfileContext):

@@ -1,4 +1,6 @@
 import os
+import json
+import tempfile
 import gspread
 from datetime import datetime
 from typing import Optional
@@ -10,21 +12,82 @@ from .schemas import CandidateProfile
 class GoogleSheetsManager:
     """Менеджер для работы с Google Sheets"""
 
-    def __init__(self, spreadsheet_id: str, credentials_path: Optional[str] = None):
+    def __init__(self, spreadsheet_id: str):
         self.spreadsheet_id = spreadsheet_id
-        self.credentials_path = credentials_path or os.getenv("GOOGLE_CREDENTIALS_PATH")
         self._client: Optional[gspread.Client] = None
         self._sheet: Optional[gspread.Worksheet] = None
 
     def _get_client(self) -> gspread.Client:
         """Получить клиент gspread"""
         if self._client is None:
-            if self.credentials_path and os.path.exists(self.credentials_path):
-                # Использование service account
-                self._client = gspread.service_account(filename=self.credentials_path)
+            # Попробовать собрать credentials из отдельных переменных окружения
+            google_type = os.getenv("GOOGLE_TYPE", "service_account")
+            project_id = os.getenv("GOOGLE_PROJECT_ID")
+            private_key_id = os.getenv("GOOGLE_PRIVATE_KEY_ID")
+            private_key = os.getenv("GOOGLE_PRIVATE_KEY")
+            client_email = os.getenv("GOOGLE_CLIENT_EMAIL")
+            client_id = os.getenv("GOOGLE_CLIENT_ID")
+            auth_uri = os.getenv(
+                "GOOGLE_AUTH_URI", "https://accounts.google.com/o/oauth2/auth"
+            )
+            token_uri = os.getenv(
+                "GOOGLE_TOKEN_URI", "https://oauth2.googleapis.com/token"
+            )
+            auth_provider_x509_cert_url = os.getenv(
+                "GOOGLE_AUTH_PROVIDER_X509_CERT_URL",
+                "https://www.googleapis.com/oauth2/v1/certs",
+            )
+            client_x509_cert_url = os.getenv("GOOGLE_CLIENT_X509_CERT_URL")
+            universe_domain = os.getenv("GOOGLE_UNIVERSE_DOMAIN", "googleapis.com")
+
+            if all([project_id, private_key_id, private_key, client_email, client_id]):
+                try:
+                    # Собрать JSON из отдельных переменных
+                    credentials_data = {
+                        "type": google_type,
+                        "project_id": project_id,
+                        "private_key_id": private_key_id,
+                        "private_key": private_key,
+                        "client_email": client_email,
+                        "client_id": client_id,
+                        "auth_uri": auth_uri,
+                        "token_uri": token_uri,
+                        "auth_provider_x509_cert_url": auth_provider_x509_cert_url,
+                        "client_x509_cert_url": client_x509_cert_url
+                        or (
+                            f"https://www.googleapis.com/robot/v1/metadata/x509/{client_email.replace('@', '%40')}"
+                            if client_email
+                            else None
+                        ),
+                        "universe_domain": universe_domain,
+                    }
+
+                    # Создать временный файл с credentials
+                    with tempfile.NamedTemporaryFile(
+                        mode="w", suffix=".json", delete=False
+                    ) as temp_file:
+                        json.dump(credentials_data, temp_file)
+                        temp_path = temp_file.name
+
+                    self._client = gspread.service_account(filename=temp_path)
+                    # Удалить временный файл
+                    os.unlink(temp_path)
+                    logfire.info(
+                        "Google Sheets client initialized from environment variables"
+                    )
+                except Exception as e:
+                    logfire.error(
+                        f"Failed to create credentials from environment variables: {e}"
+                    )
+                    # Fallback на OAuth
+                    self._client = gspread.oauth()
+                    logfire.info(
+                        "Google Sheets client initialized with OAuth (fallback)"
+                    )
             else:
                 # Fallback на OAuth (требует настройки)
                 self._client = gspread.oauth()
+                logfire.info("Google Sheets client initialized with OAuth")
         return self._client
 
     def _get_sheet(self, worksheet_name: str = "Лист1") -> gspread.Worksheet:
